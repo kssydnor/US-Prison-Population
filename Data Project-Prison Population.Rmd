@@ -1,0 +1,197 @@
+---
+title: "US Prison Population"
+output: html_notebook
+---
+```{r}
+# install.packages("janitor")
+
+library(janitor)
+library(tidyverse)
+```
+
+Getting all in one table is not feasible
+Start with questions
+clean using google sheets
+* read_sheet - read a range of data
+* use parse_number to change from text -> number
+  the week after importing (disney)
+*data.census.gov for national and state populations
+
+Example for practice:
+```{r}
+read.csv("Data_Project/Prison-Pop-By-State.csv", skip = 10)
+```
+
+The goal of the project: for what offenses are people going to prison?
+General questions to ask:
+What offenses are people going to jail for?
+How many people are going to prison for non-violent crimes vs. violent crimes?
+What is the highest number of offenses across the board?
+Which state has the highest number of offenses? What do most of those offenses consist of?
+*overpopulation in prisons
+
+The CSV files covering both federal and state. Most of the CSVs that I saw were calculating per capita, but the first CSV I am analyzing is just the total number in each state. The first CSV breaks down for the percentage of the prisoners are convicted for violent crime, public order, drug-related, etc. Since this is only for states, the laws may vary in their application.
+
+Most of the data is from 2022 but some states have data from 2017 and 2018 (in original copies in GitHub)
+
+Steps
+
+#1 Renamed and downloaded sheet
+#2 Made a copy of original csv (all originals in GitHub)
+#3 Cleaned By Offense By State csv in Google sheets to make it readable
+#4 downloaded as cvs from google sheets
+#5 skipped first few rows and deleted the last 7 rows
+#6 Made the first row the header row
+```{r}
+by_state_off <- read.csv("Data_Project/Copy of By Offense By State.csv", skip = 9) %>%
+  slice(-c(52, 53, 54, 55, 56, 57, 58)) %>%
+  row_to_names(row_number = 1) 
+```
+I tried to delete columns and rename them using tidyverse, but the code wouldn't read, so I had to do some more manual cleaning on my end. Then, start the process all over.
+
+Change numbers to text
+
+```{r}
+by_state_off_new <- read.csv("Data_Project/Copy of By Offense By State - Copy of By Offense By State.csv", skip = 9) %>%
+  slice(-c(52, 53, 54, 55, 56, 57, 58)) %>%
+  row_to_names(row_number = 1) 
+
+by_state_off_new <- by_state_off_new %>%
+  mutate(Total_number = as.numeric(str_remove_all(Total_number, ",")))
+```
+
+I had to play around with the mutate function several times to change text to numbers but we finally got it! The third column and beyond are percentages.
+
+Just by looking at the data for this one, prisoners convicted of violent crimes seems to take up the highest percentage of prisoners
+
+Basic questions:
+
+Who has the most number of prisoners?
+```{r}
+by_state_off_new %>%
+  arrange(desc(Total_number))
+```
+
+What is the number of prisoners convicted of violent crimes from Texas?
+
+# What is considered violent according to Texas law: Assault, Robbery, Murder, Manslaughter, Kidnapping, Sexual Assault, Domestic Violence, Arson
+
+```{r}
+by_state_off_new %>%
+  filter(Jurisdiction == "Texas") %>%
+  mutate(sixty_six_percent = 116467 * 0.662)
+```
+A = around 77101 people are convicted of violent crimes in Texas according to the criteria above
+
+State population based on census: 29,145,505
+
+What percent of the population is that?
+
+```{r}
+by_state_off_new %>%
+  filter(Jurisdiction == "Texas") %>%
+  mutate(percentage = (77101 / 29145505) * 100)
+```
+A = 0.26%
+
+Who has the highest and lowest percentage of violent crime?
+```{r}
+by_state_off_new %>%
+  arrange(desc(Violent))
+```
+
+A = Alaska and Iowa
+
+# What is considered a violent crime in Iowa?: murder and nonnegligent manslaughter, forcible rape, robbery, aggravated assault,extortion, intimidation, kidnapping and reckless endangerment
+
+# What is considered a violent crime in Alaska?:  murder, manslaughter, criminally negligent homicide, assault, kidnapping, sexual assault, sexual abuse of a minor, robbery, threats to do bodily harm, driving under the influence, and arson in the 1st degree (personal injury only)
+
+Laws vary as we can see. A DUI in Alaska is considered violent while the same isn't true in Texas or Iowa
+
+# What are the number of prisoners convicted of violent crimes in Alaska and Iowa respectively? And what percent of the state population do they make up?
+
+Alaska population based on census: 733391
+
+```{r}
+by_state_off_new %>%
+  filter(Jurisdiction == "Alaska") %>%
+  mutate(eighty_two_percent = 2156 * 0.821)
+```
+```{r}
+by_state_off_new %>%
+  filter(Jurisdiction == "Alaska") %>%
+  mutate(percentage = (1770 / 733391) * 100)
+```
+A: 0.24%
+
+Iowa population based on census: 3190369
+
+```{r}
+by_state_off_new %>%
+  filter(Jurisdiction == "Iowa") %>%
+  mutate(thirty_two_percent = 9749 * 0.324)
+```
+```{r}
+by_state_off_new %>%
+  filter(Jurisdiction == "Iowa") %>%
+  mutate(percentage = (3158 / 3190369) * 100)
+```
+A: 0.1%
+
+Even though Alaska has a higher percentage, there are less prisoners convicted of violent crimes there than in Iowa; percentages can be deceiving
+
+# What about Missouri?
+
+Population based on census: 6154913
+```{r}
+by_state_off_new %>%
+  filter(Jurisdiction == "Missouri") %>%
+  mutate(fifty_eight_percent = 23432 * 0.585)
+```
+
+```{r}
+by_state_off_new %>%
+  filter(Jurisdiction == "Missouri") %>%
+  mutate(percentage = (13707 / 6154913) * 100)
+```
+
+Violent offenders make up a very small percentage of the overall all state population
+
+# What is the percentage of prisoners in total in the US that are convicted of violent crimes?
+In order to solve this question, we need to pull a different sheet and clean that one.
+
+This CSV has data from 2021 and list specific offenses considered as violent on the state level. The percentage by race is also listed, but to answer the above question, we will disregard. The original CSV list these as the most serious offenses. DUI is NOT listed as a violent crime in this sheet
+
+```{r}
+totaloff <- read_csv("Data_Project/Copy of By Gender, Offense, Race.csv", skip = 9) %>%
+  slice(-c(34, 35, 36, 37, 38, 39, 40, 41, 42, 43)) %>%
+  row_to_names(row_number = 1) 
+```
+
+Change text -> number
+
+```{r}
+totaloff <- totaloff %>%
+  mutate(`All prisoners` = as.numeric(str_remove_all(`All prisoners`, ",")))
+```
+
+```{r}
+totaloff %>%
+  filter(Type == "Violent") %>%
+  mutate(sixty_two_percent = 1021288 * 0.629)
+```
+A: 642390 prisoners convicted of violent crimes nationally
+
+
+
+
+
+
+
+
+
+
+
+
+
+
